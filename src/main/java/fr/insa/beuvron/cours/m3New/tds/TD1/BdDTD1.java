@@ -21,7 +21,6 @@ package fr.insa.beuvron.cours.m3New.tds.TD1;
 import fr.insa.beuvron.cours.m3.database.ConnectSGBD;
 import fr.insa.beuvron.cours.m3.database.ResultSetUtils;
 import fr.insa.beuvron.utils.ConsoleFdB;
-import java.io.Console;
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
@@ -96,12 +95,8 @@ public class BdDTD1 {
         {"Inscription", "semestre", "Semestre", "id"}
     };
 
-    public static void createSchema(Connection con, boolean echo) {
-        try {
-            con.setAutoCommit(false);
-            Statement st = con.createStatement();
-
-//            st.executeUpdate(tables[0][1]);
+    public static void createSchema(Connection con, boolean echo) throws SQLException {
+        try (Statement st = con.createStatement()) {
             for (String[] table : tables) {
                 if (echo) {
                     System.out.println(table[1] + ";\n");
@@ -131,18 +126,14 @@ public class BdDTD1 {
             }
             con.commit();
         } catch (SQLException ex) {
-            try {
-                con.rollback();
-            } catch (SQLException ex1) {
-            }
-            throw new Error(ex);
+            con.rollback();
+            System.out.println("ERROR : problem during createSchema");
+            throw ex;
         }
     }
 
-    public static void deleteSchema(Connection con, boolean echo) {
-        try {
-            con.setAutoCommit(false);
-            Statement st = con.createStatement();
+    public static void deleteSchema(Connection con, boolean echo) throws SQLException {
+        try (Statement st = con.createStatement()) {
 
             for (String[] fkey : foreignKeys) {
                 String fk = """
@@ -165,11 +156,9 @@ public class BdDTD1 {
             }
             con.commit();
         } catch (SQLException ex) {
-            try {
-                con.rollback();
-            } catch (SQLException ex1) {
-            }
-            throw new Error(ex);
+            con.rollback();
+            System.out.println("ERROR : problem during deleteSchema");
+            throw ex;
         }
 
     }
@@ -190,16 +179,16 @@ public class BdDTD1 {
     }
 
     public static void createPersonnesAlea(Connection con, int nbr, LocalDate minNaissance, LocalDate maxNaissance,
-            Random r) {
+            Random r) throws SQLException {
         List<String> noms = ExemplePersonnesAlea.nomsAlea();
         List<String> prenoms = ExemplePersonnesAlea.prenomsAlea();
-        try {
-            con.setAutoCommit(false);
-            PreparedStatement pst = con.prepareStatement(
-                    """
+        try (PreparedStatement pst = con.prepareStatement(
+                """
                INSERT INTO Personne (nom,prenom,dateNaissance)
                  VALUES (?,?,?)
-               """);
+               """)) {
+            con.setAutoCommit(false);
+
             for (int i = 0; i < nbr; i++) {
                 pst.setString(1, noms.get(r.nextInt(noms.size())));
                 pst.setString(2, prenoms.get(r.nextInt(prenoms.size())));
@@ -210,11 +199,9 @@ public class BdDTD1 {
             }
             con.commit();
         } catch (SQLException ex) {
-            try {
-                con.rollback();
-            } catch (SQLException ex1) {
-            }
-            throw new Error(ex);
+            con.rollback();
+            System.out.println("ERROR : problem during createPersonnesAlea");
+            throw ex;
         }
     }
 
@@ -232,15 +219,15 @@ public class BdDTD1 {
 
     public static void createModulesAlea(Connection con, int nbr,
             int minPlace, int maxPlace, double probaAvoirResponsable,
-            Random r) {
-        try {
-            List<Integer> persIds = getAllIds(con, "Personne");
-            con.setAutoCommit(false);
-            PreparedStatement pst = con.prepareStatement(
-                    """
+            Random r) throws SQLException {
+        try (PreparedStatement pst = con.prepareStatement(
+                """
                INSERT INTO Module (intitule,description,nbrPlace,responsable)
                  VALUES (?,?,?,?)
-               """);
+               """)) {
+            List<Integer> persIds = getAllIds(con, "Personne");
+            con.setAutoCommit(false);
+
             for (int i = 0; i < nbr; i++) {
                 pst.setString(1, "mod " + String.format("%03d", r.nextInt(1000)));
                 pst.setString(2, Integer.toUnsignedString(r.nextInt(), 35));
@@ -254,23 +241,21 @@ public class BdDTD1 {
             }
             con.commit();
         } catch (SQLException ex) {
-            try {
-                con.rollback();
-            } catch (SQLException ex1) {
-            }
-            throw new Error(ex);
+            con.rollback();
+            System.out.println("ERROR : problem during createModulesAlea");
+            throw ex;
         }
     }
 
     public static void createSemestresAlea(Connection con, int minAnnee, int maxAnnee,
-            Random r) {
-        try {
-            con.setAutoCommit(false);
-            PreparedStatement pst = con.prepareStatement(
-                    """
+            Random r) throws SQLException {
+        try (PreparedStatement pst = con.prepareStatement(
+                """
                INSERT INTO Semestre (annee,semestre)
                  VALUES (?,?)
-               """);
+               """)) {
+            con.setAutoCommit(false);
+
             for (int i = minAnnee; i <= maxAnnee; i++) {
                 for (int s = 1; s <= 2; s++) {
                     pst.setInt(1, i);
@@ -280,11 +265,9 @@ public class BdDTD1 {
             }
             con.commit();
         } catch (SQLException ex) {
-            try {
-                con.rollback();
-            } catch (SQLException ex1) {
-            }
-            throw new Error(ex);
+            con.rollback();
+            System.out.println("ERROR : problem during createSemestresAlea");
+            throw ex;
         }
     }
 
@@ -297,44 +280,42 @@ public class BdDTD1 {
         }
     }
 
-    public static void createOuverturesAlea(Connection con, int nbr, Random r) {
-        try {
+    public static void createOuverturesAlea(Connection con, int nbr, Random r) throws SQLException {
+        try (PreparedStatement pst = con.prepareStatement(
+                """
+               INSERT INTO Ouvert (module,semestre)
+                 VALUES (?,?)
+               """)) {
             List<Integer> modIds = getAllIds(con, "Module");
             List<Integer> semIds = getAllIds(con, "Semestre");
             con.setAutoCommit(false);
-            PreparedStatement pst = con.prepareStatement(
-                    """
-               INSERT INTO Ouvert (module,semestre)
-                 VALUES (?,?)
-               """);
+
             long maxTry = nbr * 10;
             long i = 0;
             int ok = 0;
             while (ok < nbr && i < maxTry) {
                 int mod = modIds.get(r.nextInt(modIds.size()));
                 int sem = semIds.get(r.nextInt(semIds.size()));
-                if (! ouvertureExists(con, mod, sem)) {
+                if (!ouvertureExists(con, mod, sem)) {
                     pst.setInt(1, mod);
                     pst.setInt(2, sem);
                     pst.executeUpdate();
-                    ok ++;
+                    ok++;
                 }
-                i ++;
+                i++;
             }
             if (ok < nbr) {
                 System.out.println("WARNING : impossible de créer plus de " + ok + " ouvertures en " + maxTry + " essais");
             }
             con.commit();
         } catch (SQLException ex) {
-            try {
-                con.rollback();
-            } catch (SQLException ex1) {
-            }
-            throw new Error(ex);
+            con.rollback();
+            System.out.println("ERROR : problem during createOuverturesAlea");
+            throw ex;
         }
     }
 
-    public static boolean inscriptionExists(Connection con,int personneId, int moduleId, int semestreId) throws SQLException {
+    public static boolean inscriptionExists(Connection con, int personneId, int moduleId, int semestreId) throws SQLException {
         try (Statement st = con.createStatement();
                 ResultSet test = st.executeQuery("select * from inscription where "
                         + "etudiant = " + personneId
@@ -344,53 +325,50 @@ public class BdDTD1 {
         }
     }
 
-    public static void createInscriptionsAlea(Connection con, int nbr, Random r) {
-        try {
+    public static void createInscriptionsAlea(Connection con, int nbr, Random r) throws SQLException {
+
+        try (PreparedStatement pst = con.prepareStatement(
+                """
+               INSERT INTO Inscription (etudiant,module,semestre)
+                 VALUES (?,?,?)
+               """)) {
             List<Integer> personIds = getAllIds(con, "Personne");
             List<Integer> modIds = getAllIds(con, "Module");
             List<Integer> semIds = getAllIds(con, "Semestre");
-            con.setAutoCommit(false);
-            PreparedStatement pst = con.prepareStatement(
-                    """
-               INSERT INTO Inscription (etudiant,module,semestre)
-                 VALUES (?,?,?)
-               """);
-            long  maxTry = nbr * 10;
+            long maxTry = nbr * 10;
             long i = 0;
             int ok = 0;
             while (ok < nbr && i < maxTry) {
                 int etud = personIds.get(r.nextInt(personIds.size()));
                 int mod = modIds.get(r.nextInt(modIds.size()));
                 int sem = semIds.get(r.nextInt(semIds.size()));
-                if (! inscriptionExists(con, etud,mod, sem)) {
+                if (!inscriptionExists(con, etud, mod, sem)) {
                     pst.setInt(1, etud);
                     pst.setInt(2, mod);
                     pst.setInt(3, sem);
                     pst.executeUpdate();
-                    ok ++;
+                    ok++;
                 }
-                i ++;
+                i++;
             }
             if (ok < nbr) {
                 System.out.println("WARNING : impossible de créer plus de " + ok + " inscriptions en " + maxTry + " essais");
             }
             con.commit();
         } catch (SQLException ex) {
-            try {
-                con.rollback();
-            } catch (SQLException ex1) {
-            }
-            throw new Error(ex);
+            con.rollback();
+            System.out.println("WARNING : error during createInscriptionsAlea");
+            throw ex;
         }
     }
-    
-    public static void createExempleTD2(Connection con) {
+
+    public static void createExempleTD2(Connection con) throws SQLException {
         Random r = new Random(885214156);
         createPersonnesAlea(con, 10, LocalDate.parse("1960-01-01"), LocalDate.parse("2005-01-01"), r);
         createModulesAlea(con, 6, 20, 200, 0.8, r);
         createSemestresAlea(con, 2021, 2021, r);
         createOuverturesAlea(con, 10, r);
-        createInscriptionsAlea(con, 30, r);      
+        createInscriptionsAlea(con, 30, r);
     }
 
     public static void afficheSQLQuery(Connection con, String query) throws SQLException {
@@ -440,14 +418,13 @@ public class BdDTD1 {
                 } else if (rep == 5) {
                     afficheSQLQuery(con, "select * from Inscription");
                 } else if (rep == 6) {
-                    for (String table : new String[] {
+                    for (String table : new String[]{
                         "Personne",
                         "Module",
                         "Semestre",
                         "Ouvert",
-                        "Inscription",
-                    }) {
-                    afficheSQLQuery(con, "select * from " + table);
+                        "Inscription",}) {
+                        afficheSQLQuery(con, "select * from " + table);
                     }
                 } else if (rep != 0) {
                     System.out.println("choix invalide : " + rep);
@@ -498,7 +475,7 @@ public class BdDTD1 {
                 } else if (rep == 5) {
                     int amin = ConsoleFdB.entreeEntier("année min : ");
                     int amax = ConsoleFdB.entreeEntier("année max : ");
-                    createSemestresAlea(con, amin,amax, r);
+                    createSemestresAlea(con, amin, amax, r);
                 } else if (rep == 6) {
                     int nbr = ConsoleFdB.entreeEntier("combien d'ouvertures : ");
                     createOuverturesAlea(con, nbr, r);
@@ -507,7 +484,7 @@ public class BdDTD1 {
                     createInscriptionsAlea(con, nbr, r);
                 } else if (rep == 8) {
                     String sql = ConsoleFdB.entreeString("entrez un select : ");
-                    afficheSQLQuery(con, sql );
+                    afficheSQLQuery(con, sql);
                 } else if (rep == 9) {
                     menuAffTables(con);
                 } else if (rep == 10) {
@@ -523,9 +500,12 @@ public class BdDTD1 {
     }
 
     public static void main(String[] args) {
-        Connection con = ConnectSGBD.connectionLocalPostgresql();
-        menuText(con);
+        try (Connection con = ConnectSGBD.connectionLocalPostgresql()) {
+            con.setAutoCommit(false);
+            menuText(con);
+        } catch (SQLException ex) {
+            throw new Error(ex);
+        }
     }
-
 
 }

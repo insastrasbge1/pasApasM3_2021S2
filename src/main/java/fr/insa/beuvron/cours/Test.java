@@ -6,7 +6,7 @@
 package fr.insa.beuvron.cours;
 
 /**
- *
+ * V2
  * @author francois
  */
 public class Test {

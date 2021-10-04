@@ -38,9 +38,7 @@ public class Test1 {
         try ( Connection con = postgres.connect()) {
             System.out.println("tout va bien");
         } catch (Exception ex) {
-            throw new Error("Erreur de connection",
-                    ex);
-
+            throw new Error(ex);
         }
     }
 

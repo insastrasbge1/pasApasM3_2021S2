@@ -30,21 +30,36 @@ public abstract class SGBD {
 
     public abstract String nomDriver();
 
-    public abstract String sousProtocale();
+    public abstract String sousProtocole();
 
     public String getUrl() {
-        return "jdbc:" + this.sousProtocale()
+        return "jdbc:" + this.sousProtocole()
                 + "://" + this.host + ":"
                 + this.port + "/" + this.database;
     }
 
     public Connection connect() throws ClassNotFoundException,
-                        SQLException {
+            SQLException {
         Class.forName(this.nomDriver());
 
         Connection con = DriverManager.getConnection(this.getUrl(), user, pass);
+        
+        // fixe le plus haut degré d'isolation entre transactions
+        // cela peut éventuellement ralentir le serveur s'il y a beaucoup de clients
         con.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
-        con.setAutoCommit(false);
+        
+        // avec con.setAutoCommit(true) (defaut), chaque ordre au sgbd au travers
+        // d'un executeUpdate ou executeQuery est dans sa propre transaction
+        // isolée. Cela est un problème si l'on veut faire des modifications
+        // avec plusieurs ordres executeUpdate.
+        // dans ce cas, il vaut mieux faire un con.setAutoCommit(false), et valider
+        // explicitement les modifications avec un con.commit() (ou un con.rollback()
+        // si l'on veut annuler les modifications)
+        // néanmoins, le défaut est correct pour un
+        // executeQuery isolé, ce qui sera le plus souvent le cas
+        // aussi, je laisse le defaut.
+        // con.setAutoCommit(false);
+        
         return con;
     }
 
@@ -60,7 +75,7 @@ public abstract class SGBD {
         }
 
         @Override
-        public String sousProtocale() {
+        public String sousProtocole() {
             return "postgres";
         }
 
